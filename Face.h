@@ -10,18 +10,23 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
+#include <QtMath>
+
 class Face
 {
     public:
-        Face(int, int, int);
+        Face();
+        Face(int, int, float);
         int x;
         int y;
-        int rotation;
+        float rotation;
         float scale;
 
         static std::string ToString(QList<Face> *);
         static bool InitFaceDetection();
         static void DetectFace(cv::Mat *, QList<Face> *);
+    private:
+        void SetRotation(int x1, int y1, int x2, int y2);
 };
 
 #endif // FACES_H
