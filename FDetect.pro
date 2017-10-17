@@ -3,21 +3,14 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = faceDetectpr
+TARGET = fDetect
 DEPENDPATH += .
-LIBS += -lopencv_videoio -lopencv_highgui -lopencv_core
+LIBS += -lopencv_videoio -lopencv_objdetect -lopencv_imgproc -lopencv_highgui -lopencv_core
 
-QT += widgets core websockets
+QT += core
 
 SOURCES += main.cpp \
-    QCameraWindow.cpp \
-    Websocketserver.cpp \
-    QCameraWidget.cpp \
     Face.cpp
-HEADERS += \
-    QCameraWindow.h \
-    Websocketserver.h \
-    QCameraWidget.h \
-    Face.h
-    QCameraWindow.h
 
+HEADERS += \
+    Face.h

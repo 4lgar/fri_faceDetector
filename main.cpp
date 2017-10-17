@@ -1,37 +1,35 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
 #include <stdio.h>
-#include <assert.h>
-#include <QApplication>
-#include <QWidget>
-#include <QVBoxLayout>
-#include "QCameraWidget.h"
-#include "Websocketserver.h"
+#include <QCoreApplication>
 
-static int webSocketPort = 1234;
+#include "Face.h"
 
-int main(int argc, char **argv) {
-    CvCapture *camera = cvCreateCameraCapture(0);
-    assert(camera);
-    IplImage *image = cvQueryFrame(camera);
-    assert(image);
+using namespace std;
+using namespace cv;
 
-    QList<Face *> *faces = new QList<Face *>();
-    faces->append(new Face(1, 2, 30));
+int main() {
+    VideoCapture cap(0); // open the default camera
+    if(!cap.isOpened())  // check if we succeeded
+        return -1;
 
-    QApplication app(argc, argv);
+    Mat frame;
 
-    WebSocketServer *server = new WebSocketServer(webSocketPort, true, faces);
-    QObject::connect(server, &WebSocketServer::closed, &app, &QCoreApplication::quit);
+    QList<Face> faceDetected = QList<Face>();
+    bool val = Face::InitFaceDetection();
 
-    QCameraWidget *mainWin = new QCameraWidget(camera, faces);
-    mainWin->setWindowTitle("FRI | FaceDetector");
-    mainWin->show();    
+    for(;;)
+    {
+        cap >> frame;
 
-    int retval = app.exec();
+        if( !frame.empty() ){
 
-    cvReleaseCapture(&camera);
+            Face::DetectFace(&frame, &faceDetected);
+            if(faceDetected.count() > 0)
+                std::cout << Face::ToString(&faceDetected) << std::endl;
 
-    return retval;
+        }
+    }
+
+    // the camera will be deinitialized automatically in VideoCapture destructor
+    return 0;
 }
 
