@@ -25,6 +25,7 @@ class Face
         static std::string ToString(QList<Face> *);
         static bool InitFaceDetection();
         static void DetectFace(cv::Mat *, QList<Face> *);
+        static void RotateMat(cv::Mat *, cv::Mat *, int);
     private:
         void SetRotation(int x1, int y1, int x2, int y2);
 };
