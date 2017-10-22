@@ -76,15 +76,15 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
 
     for(uint i = 0; i < faces.size(); ++i){
 
-        scale = (float)faces[1].height / (float)frame->rows;
+        scale = (float)faces[i].height / (float)frame->rows;
 
         toPush = Face(faces[i].x, faces[i].y, scale);
 
         faceROI = frameGray(faces[i]);
 
         if(!faceROI.empty()){
-            eyeCascade.detectMultiScale(faceROI, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-            eyeGlassCascade.detectMultiScale(faceROI, eyesGlass, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+            eyeCascade.detectMultiScale(faceROI, eyes, 1.08, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+            eyeGlassCascade.detectMultiScale(faceROI, eyesGlass, 1.01, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
 
             if(eyesGlass.size() >= 2)
                 toPush.SetRotation(eyesGlass[0].x, eyesGlass[0].y, eyesGlass[1].x, eyesGlass[1].y);
