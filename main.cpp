@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <QCoreApplication>
-#include <QFile>
 
 #include "Face.h"
 

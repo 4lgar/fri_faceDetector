@@ -50,7 +50,7 @@ void Face::SetRotation(int x1, int y1, int x2, int y2){
     float opp = y2 - y1;
     float adj = x2 - x1;
 
-    rotation = qRadiansToDegrees(qAtan(opp/adj));
+    rotation = atan(opp/adj) * 180 / M_PI;
 }
 
 void Face::RotateMat(Mat *src, Mat *dst, int angle){
