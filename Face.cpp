@@ -40,9 +40,9 @@ std::string Face::ToString(QList<Face> *list){
 }
 
 bool Face::InitFaceDetection(){
-    return faceCascade.load("/home/dons/Téléchargements/opencv-3.3.0/data/haarcascades/haarcascade_frontalface_alt.xml") &&
-           eyeCascade.load("/home/dons/Téléchargements/opencv-3.3.0/data/haarcascades/haarcascade_eye.xml") &&
-           eyeGlassCascade.load("/home/dons/Téléchargements/opencv-3.3.0/data/haarcascades/haarcascade_eye_tree_eyeglasses.xml");
+    return faceCascade.load("/home/fullrange/fri_faceDetector2/haarcascades/haarcascade_frontalface_alt.xml") &&
+           eyeCascade.load("/home/fullrange/fri_faceDetector2/haarcascades/haarcascade_eye.xml") &&
+           eyeGlassCascade.load("/home/fullrange/fri_faceDetector2/haarcascades/haarcascade_eye_tree_eyeglasses.xml");
 }
 
 void Face::SetRotation(int x1, int y1, int x2, int y2){

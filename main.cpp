@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 
     }else{
 
-        VideoCapture cap(0); // open the default camera
+        VideoCapture cap(1); // open the default camera
         if(!cap.isOpened())  // check if we succeeded
             return -1;
 
@@ -57,6 +57,8 @@ int main(int argc, char *argv[]) {
                 Face::DetectFace(&frame, &faceDetected);
                 if(faceDetected.count() > 0)
                     std::cout << Face::ToString(&faceDetected) << std::endl;
+                else
+                    std::cout << std::endl;
 
             }
         }
