@@ -40,9 +40,9 @@ std::string Face::ToString(QList<Face> *list){
 }
 
 bool Face::InitFaceDetection(){
-    return faceCascade.load("/home/fullrange/fri_faceDetector2/haarcascades/haarcascade_frontalface_alt.xml") &&
-           eyeCascade.load("/home/fullrange/fri_faceDetector2/haarcascades/haarcascade_eye.xml") &&
-           eyeGlassCascade.load("/home/fullrange/fri_faceDetector2/haarcascades/haarcascade_eye_tree_eyeglasses.xml");
+    return faceCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_frontalface_alt.xml") &&
+           eyeCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_eye.xml") &&
+           eyeGlassCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_eye_tree_eyeglasses.xml");
 }
 
 void Face::SetRotation(int x1, int y1, int x2, int y2){
@@ -83,13 +83,13 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
     cvtColor(*frame, frameGray, CV_BGR2GRAY );
     equalizeHist(frameGray, frameGray);
 
-    RotateMat(&frameGray, &frame20, 20);
-    RotateMat(&frameGray, &frameMin20, -20);
+    // RotateMat(&frameGray, &frame20, 20);
+    // RotateMat(&frameGray, &frameMin20, -20);
 
     //-- Detect faces
     faceCascade.detectMultiScale(frameGray, faces, 1.3, 2, 0| CV_HAAR_SCALE_IMAGE, Size(30, 30));
-    faceCascade.detectMultiScale(frame20, faces20, 1.3, 2, 0| CV_HAAR_SCALE_IMAGE, Size(30, 30));
-    faceCascade.detectMultiScale(frameMin20, facesMin20, 1.3, 2, 0| CV_HAAR_SCALE_IMAGE, Size(30, 30));
+    // faceCascade.detectMultiScale(frame20, faces20, 1.3, 2, 0| CV_HAAR_SCALE_IMAGE, Size(30, 30));
+    // faceCascade.detectMultiScale(frameMin20, facesMin20, 1.3, 2, 0| CV_HAAR_SCALE_IMAGE, Size(30, 30));
 
 
     toReturn->clear();
@@ -102,22 +102,22 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
 
     }
 
-    for(uint i = 0; i < faces20.size(); ++i){
+//    for(uint i = 0; i < faces20.size(); ++i){
 
-        scale = (float)faces20[i].height / (float)frame->rows;
-        toPush = Face(faces20[i].x, faces20[i].y, scale);
-        toPush.rotation = 20;
-        toReturn->push_back(toPush);
+//        scale = (float)faces20[i].height / (float)frame->rows;
+//        toPush = Face(faces20[i].x, faces20[i].y, scale);
+//        toPush.rotation = 20;
+//        toReturn->push_back(toPush);
 
-    }
+//    }
 
-    for(uint i = 0; i < facesMin20.size(); ++i){
+//    for(uint i = 0; i < facesMin20.size(); ++i){
 
-        scale = (float)facesMin20[i].height / (float)frame->rows;
-        toPush = Face(facesMin20[i].x, facesMin20[i].y, scale);
-        toPush.rotation = -20;
-        toReturn->push_back(toPush);
+//        scale = (float)facesMin20[i].height / (float)frame->rows;
+//        toPush = Face(facesMin20[i].x, facesMin20[i].y, scale);
+//        toPush.rotation = -20;
+//        toReturn->push_back(toPush);
 
-    }
+//    }
 
 }

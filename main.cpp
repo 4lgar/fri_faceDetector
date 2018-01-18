@@ -53,8 +53,10 @@ int main(int argc, char *argv[]) {
             cap >> frame;
 
             if( !frame.empty() ){
+                Mat smallerFrame;
+                cv::resize(frame, smallerFrame, Size(), 0.3, 0.3, INTER_AREA);
 
-                Face::DetectFace(&frame, &faceDetected);
+                Face::DetectFace(&smallerFrame, &faceDetected);
                 if(faceDetected.count() > 0)
                     std::cout << Face::ToString(&faceDetected) << std::endl;
                 else
