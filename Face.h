@@ -17,6 +17,7 @@ class Face
     public:
         Face();
         Face(int, int, float);
+        Face(int, int, float, float);
         int x;
         int y;
         float rotation;

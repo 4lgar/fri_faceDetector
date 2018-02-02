@@ -8,6 +8,7 @@ using namespace std;
 using namespace cv;
 
 int main(int argc, char *argv[]) {
+//    namedWindow("Face", WINDOW_NORMAL);
 
     if(argc == 2){
 
@@ -54,7 +55,9 @@ int main(int argc, char *argv[]) {
 
             if( !frame.empty() ){
                 Mat smallerFrame;
-                cv::resize(frame, smallerFrame, Size(), 0.3, 0.3, INTER_AREA);
+                cv::resize(frame, smallerFrame, Size(), 0.2, 0.2, INTER_AREA);
+
+//                imshow("Face", smallerFrame);
 
                 Face::DetectFace(&smallerFrame, &faceDetected);
                 if(faceDetected.count() > 0)
@@ -63,6 +66,7 @@ int main(int argc, char *argv[]) {
                     std::cout << std::endl;
 
             }
+            waitKey(1);
         }
 
         // the camera will be deinitialized automatically in VideoCapture destructor
