@@ -1,6 +1,9 @@
 #ifndef FACES_H
 #define FACES_H
 
+//#define OUTPUT
+
+
 #include <QtCore/QObject>
 #include <QtCore/QList>
 
@@ -9,6 +12,10 @@
 #include "opencv2/objdetect/objdetect.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+
+
+#define ORIGINAL_FAC 0.2
+#define NEW_FAC 0.4
 
 #include <cmath>
 

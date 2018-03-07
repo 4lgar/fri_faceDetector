@@ -1,5 +1,11 @@
 #include "Face.h"
 
+#define SIDE_FACES
+#define ROTATION
+
+#define SIDE_FACE_SCALE_RIGHT 0.85
+#define SIDE_FACE_SCALE_LEFT 0.75
+
 using namespace std;
 using namespace cv;
 
@@ -101,14 +107,17 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
     cvtColor(*frame, frameGray, CV_BGR2GRAY );
     equalizeHist(frameGray, frameGray);
 
-    // RotateMat(&frameGray, &frame20, 20);
-    // RotateMat(&frameGray, &frameMin20, -20);
+    // Frontal faces
+    faceCascade.detectMultiScale(frameGray, faces, 1.2, 3, 0| CV_HAAR_SCALE_IMAGE, Size(3, 3));
 
-    //-- Detect faces
-    faceCascade.detectMultiScale(frameGray, faces, 1.3, 3, 0| CV_HAAR_SCALE_IMAGE, Size(10, 10));
+#ifdef SIDE_FACES
+    // Faces turned to the left
     profileCascade.detectMultiScale(frameGray, profileFaces, 1.3, 3, 0| CV_HAAR_SCALE_IMAGE, Size(10, 10));
     for (uint i = 0; i < profileFaces.size(); i++){
-        profileFaces[i].x = profileFaces[i].x - profileFaces[i].width * 1/3;
+        profileFaces[i].x = profileFaces[i].x - profileFaces[i].width * 1/7;
+        profileFaces[i].width *= SIDE_FACE_SCALE_LEFT;
+        profileFaces[i].height *= SIDE_FACE_SCALE_LEFT;
+        profileFaces[i].y += profileFaces[i].height * (1 - SIDE_FACE_SCALE_LEFT) / 2;
         if (profileFaces[i].x + profileFaces[i].width >= frameGray.cols){
             profileFaces[i].x = frameGray.cols - profileFaces[i].width - 1;
         }
@@ -123,11 +132,23 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
             }
         }
     }
-    // faces.insert(faces.end(), profileFaces.begin(), profileFaces.end());
+    if (faces.size() == 0){
+        faces.insert(faces.end(), profileFaces.begin(), profileFaces.end());
+    }
 
+    // Faces turned to the right
     Mat flipped;
     flip(frameGray, flipped, 1);
     profileCascade.detectMultiScale(flipped, profileFaces, 1.3, 3, 0| CV_HAAR_SCALE_IMAGE, Size(10, 10));
+    for (uint i = 0; i < profileFaces.size(); i++){
+        profileFaces[i].x = frameGray.cols - profileFaces[i].x - profileFaces[i].width * 2/3;
+        profileFaces[i].width *= SIDE_FACE_SCALE_RIGHT;
+        profileFaces[i].height *= SIDE_FACE_SCALE_RIGHT;
+        profileFaces[i].y += profileFaces[i].height * (1 - SIDE_FACE_SCALE_RIGHT) / 2;
+        if (profileFaces[i].x + profileFaces[i].width >= frameGray.cols){
+            profileFaces[i].x = frameGray.cols - profileFaces[i].width - 1;
+        }
+    }
     for (int i = profileFaces.size() - 1; i > 0; i--){
         for (uint j = 0; j < faces.size(); j++){
             Rect pf = profileFaces[i];
@@ -138,8 +159,10 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
             }
         }
     }
-//    faces.insert(faces.end(), profileFaces.begin(), profileFaces.end());
-
+    if (faces.size() == 0){
+        faces.insert(faces.end(), profileFaces.begin(), profileFaces.end());
+    }
+#endif
 
     toReturn->clear();
 
@@ -154,17 +177,23 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
         Rect roiLeftEye(face.x, face.y, face.width * 2/3, face.height * 2/3);
         Rect roiMouth(face.x, face.y + face.height * 1/2, face.width, face.height * 1/2);
 
+        Rect imageRect(0, 0, frameGray.cols, frameGray.rows);
 
         vector<Rect>rightEyes;
         vector<Rect>leftEyes;
         vector<Rect>mouths;
 //        vector<Rect>noses;
 
+        roi &= imageRect;
+        roiRightEye &= imageRect;
+        roiLeftEye &= imageRect;
+        roiMouth &= imageRect;
+
+#ifdef ROTATION
         rightEyeCascade.detectMultiScale(frameGray(roiRightEye), rightEyes, 1.3, 2, 0 | CV_HAAR_SCALE_IMAGE);
         leftEyeCascade.detectMultiScale(frameGray(roiLeftEye), leftEyes, 1.3, 5, 0 | CV_HAAR_SCALE_IMAGE);
         mouthCascade.detectMultiScale(frameGray(roiMouth), mouths, 1.2, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(face.width * 0.1, face.width * 0.1),  Size(face.width * 0.8, face.width * 0.8));
-//        noseCascade.detectMultiScale(frameGray(roi), noses, 1.2, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(face.width * 0.1, face.width * 0.1),  Size(face.width * 0.8, face.width * 0.8));
-
+#endif
 
         Mat output;
         frameGray(roi).copyTo(output);
@@ -243,8 +272,9 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
         float finalAngle = 0;
         if (countAngles > 0)
             finalAngle = angleSum / countAngles;
-
-//        imshow("Face", output);
+        #ifdef OUTPUT
+        imshow("Face", output);
+        #endif
 
         toPush = Face(faces[i].x, faces[i].y, scale, finalAngle);
         toReturn->push_back(toPush);
