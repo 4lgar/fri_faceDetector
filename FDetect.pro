@@ -7,9 +7,9 @@
 TEMPLATE = app
 TARGET = fDetect
 DEPENDPATH += .
-LIBS += -lopencv_videoio -lopencv_objdetect -lopencv_imgproc -lopencv_imgcodecs  -lopencv_highgui -lopencv_core
-
+LIBS += -lopencv_videoio -lopencv_objdetect -lopencv_imgproc -lopencv_imgcodecs  -lopencv_highgui -lopencv_core -lcuda -lopencv_cudaobjdetect -lopencv_cudaimgproc -lopencv_cudaarithm -lopencv_video
 QT += core
+CONFIG += c++11
 
 SOURCES += main.cpp \
     Face.cpp

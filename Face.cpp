@@ -1,7 +1,17 @@
 #include "Face.h"
 
-#define SIDE_FACES
+#define OVERLAP_TOLERANCE 0.1
+
+//#define SIDE_FACES
 #define ROTATION
+
+//#define BACKGROUND_SUBSTRACT
+//#define EQUALIZE_HIST
+#define TEMPLATE_MATCHING 200  // If this exists, then the value of this constant is the "confidence" needed
+#define TEMPLATE_MATCHING_ROI_MARGIN 20
+#define TEMPLATE_MATCHING_CLEANUP_INTERVAL 20
+
+#define GPU
 
 #define SIDE_FACE_SCALE_RIGHT 0.85
 #define SIDE_FACE_SCALE_LEFT 0.75
@@ -58,14 +68,24 @@ std::string Face::ToString(QList<Face> *list){
 }
 
 bool Face::InitFaceDetection(){
-    return faceCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_frontalface_alt.xml") &&
-           profileCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_profileface_alt.xml") &&
-           eyeCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_eye.xml") &&
-           eyeGlassCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_eye_tree_eyeglasses.xml") &&
-           mouthCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_mouth.xml") &&
-           leftEyeCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_lefteye.xml") &&
-           rightEyeCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_righteye.xml") &&
-           noseCascade.load("/home/qoqa/fri_faceDetector/haarcascades/haarcascade_nose.xml");
+#ifdef OUTPUT
+    namedWindow("Debug", WINDOW_OPENGL);
+#endif
+
+    return
+#ifdef LBP
+            faceCascade.load("/home/fullrange/fri_faceDetector/lbpcascades/lbpcascade_frontalface_improved.xml") &&
+            profileCascade.load("/home/fullrange/fri_faceDetector/lbpcascades/lbpcascade_profileface.xml") &&
+#else
+            faceCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_frontalface_alt.xml") &&
+            profileCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_profileface_alt.xml") &&
+#endif
+            eyeCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_eye.xml") &&
+            eyeGlassCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_eye_tree_eyeglasses.xml") &&
+            mouthCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_mouth.xml") &&
+            leftEyeCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_lefteye.xml") &&
+            rightEyeCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_righteye.xml") &&
+            noseCascade.load("/home/fullrange/fri_faceDetector/haarcascades/haarcascade_nose.xml");
 }
 
 void Face::SetRotation(int x1, int y1, int x2, int y2){
@@ -90,29 +110,139 @@ void Face::RotateMat(Mat *src, Mat *dst, int angle){
 }
 
 void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
-
     vector<Rect> faces;
     vector<Rect> profileFaces;
-//    vector<Rect> faces20;
-//    vector<Rect> facesMin20;
 
+#ifdef TEMPLATE_MATCHING
+#ifdef GPU
+    static vector<Rect> previousFaces;
+    static vector<cuda::GpuMat> faceTemplates;
+    static uint frameAt = 1;
+#endif
+#endif
+
+    vector<Rect> filteredFaces;
     Mat frameGray;
-//    Mat frame20;
-//    Mat frameMin20;
 
     float scale = 0;
 
     Face toPush;
 
-    cvtColor(*frame, frameGray, CV_BGR2GRAY );
-    equalizeHist(frameGray, frameGray);
+    cvtColor(*frame, frameGray, CV_BGR2GRAY);
+#ifdef GPU
+    cuda::GpuMat frameGpu(frameGray);
+#endif
+
+#ifdef EQUALIZE_HIST
+#ifdef GPU
+    static auto clahe = cuda::createCLAHE(2, Size(8, 8));
+    clahe->apply(frameGpu, frameGpu);
+#ifdef OUTPUT
+    imshow("Debug", frameGpu);
+#endif
+#else
+    static auto clahe = createCLAHE(2, Size(8, 8));
+    clahe->apply(frameGray, frameGray);
+#ifdef OUTPUT
+    imshow("Debug", frameGray);
+#endif
+//    equalizeHist(frameGray, frameGray);
+#endif
+
+#ifdef LOWER_CONTRAST
+
+#ifdef OUTPUT
+    imshow("Debug", frameGray);
+#endif
+#endif
+
+#endif
 
     // Frontal faces
-    faceCascade.detectMultiScale(frameGray, faces, 1.2, 3, 0| CV_HAAR_SCALE_IMAGE, Size(3, 3));
+#ifdef GPU
+    static cuda::Stream gpuStream;
+
+    static Ptr<cuda::CascadeClassifier> gpuFaceCascade = cuda::CascadeClassifier::create("/home/fullrange/fri_faceDetector/haarcascadesgpu/haarcascade_frontalface_alt.xml");
+    cuda::GpuMat facesGpu;
+    gpuFaceCascade->setScaleFactor(1.1);
+    gpuFaceCascade->setMinNeighbors(4);
+    gpuFaceCascade->setMinObjectSize(Size(50,50));
+    gpuFaceCascade->detectMultiScale(frameGpu, facesGpu);
+    gpuFaceCascade->convert(facesGpu, faces);
+
+#else
+#ifdef LBP
+
+    faceCascade.detectMultiScale(frameGray, faces, 1.1, 2, 0| CASCADE_SCALE_IMAGE, Size(2, 2));
+
+#else
+
+    faceCascade.detectMultiScale(frameGray, faces, 1.2, 3, 0| CV_HAAR_SCALE_IMAGE, Size(2, 2));
+
+#endif
+#endif
+
+#ifdef TEMPLATE_MATCHING
+#ifdef GPU
+    cuda::GpuMat templateResult;
+    for (uint i = 0; i < faceTemplates.size(); i++){
+        Ptr<cuda::TemplateMatching> matcher = cuda::createTemplateMatching(CV_8U, CV_TM_CCOEFF);
+
+        Rect imageRect(0, 0, frameGray.cols, frameGray.rows);
+        Rect faceRect = previousFaces[i];
+        Rect roiRect(faceRect);
+        roiRect.x -= TEMPLATE_MATCHING_ROI_MARGIN;
+        roiRect.y -= TEMPLATE_MATCHING_ROI_MARGIN;
+        roiRect.width += TEMPLATE_MATCHING_ROI_MARGIN * 2;
+        roiRect.height += TEMPLATE_MATCHING_ROI_MARGIN * 2;
+        roiRect &= imageRect;
+
+        matcher->match(frameGpu(roiRect), faceTemplates[i], templateResult);
+
+        Point minLoc;
+        Point maxLoc;
+        double minVal;
+        double maxVal;
+
+        cuda::minMaxLoc(templateResult, &minVal, &maxVal, &minLoc, &maxLoc);
+        if (maxVal < TEMPLATE_MATCHING) {
+            continue;
+        }
+
+        Rect foundFace(maxLoc.x + roiRect.x, maxLoc.y + roiRect.y, faceRect.width, faceRect.height);
+
+        if (frameAt % TEMPLATE_MATCHING_CLEANUP_INTERVAL == 0) {
+            cuda::GpuMat subFacesGpu;
+            vector<Rect> subFaces;
+            gpuFaceCascade->detectMultiScale(frameGpu(foundFace), subFacesGpu);
+            gpuFaceCascade->setScaleFactor(1.1);
+            gpuFaceCascade->setMinNeighbors(8);
+            gpuFaceCascade->setMinObjectSize(Size(50,50));
+            gpuFaceCascade->convert(subFacesGpu, subFaces);
+            if (subFaces.size() > 0) {
+                faces.push_back(foundFace);
+            }
+        } else {
+            faces.push_back(foundFace);
+        }
+    }
+    frameAt++;
+#endif
+#endif
 
 #ifdef SIDE_FACES
     // Faces turned to the left
-    profileCascade.detectMultiScale(frameGray, profileFaces, 1.3, 3, 0| CV_HAAR_SCALE_IMAGE, Size(10, 10));
+#ifdef GPU
+    static Ptr<cuda::CascadeClassifier> gpuProfileFaceCascade = cuda::CascadeClassifier::create("/home/fullrange/fri_faceDetector/haarcascadesgpu/haarcascade_profileface.xml");
+    cuda::GpuMat profileFacesGpu;
+    gpuProfileFaceCascade->setScaleFactor(1.1);
+    gpuProfileFaceCascade->setMinNeighbors(4);
+    gpuProfileFaceCascade->setMinObjectSize(Size(5,5));
+    gpuProfileFaceCascade->detectMultiScale(frameGpu, profileFacesGpu);
+    gpuProfileFaceCascade->convert(profileFacesGpu, profileFaces);
+#else
+    profileCascade.detectMultiScale(frameGray, profileFaces, 1.3, 3, 0 | CV_HAAR_SCALE_IMAGE, Size(10, 10));
+#endif
     for (uint i = 0; i < profileFaces.size(); i++){
         profileFaces[i].x = profileFaces[i].x - profileFaces[i].width * 1/7;
         profileFaces[i].width *= SIDE_FACE_SCALE_LEFT;
@@ -137,9 +267,18 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
     }
 
     // Faces turned to the right
+
+#ifdef GPU
+    cuda::GpuMat profileFaces2Gpu;
+    cuda::flip(frameGpu, frameGpu, 1);
+    gpuProfileFaceCascade->detectMultiScale(frameGpu, profileFaces2Gpu);
+    gpuProfileFaceCascade->convert(profileFaces2Gpu, profileFaces);
+#else
     Mat flipped;
     flip(frameGray, flipped, 1);
     profileCascade.detectMultiScale(flipped, profileFaces, 1.3, 3, 0| CV_HAAR_SCALE_IMAGE, Size(10, 10));
+#endif
+
     for (uint i = 0; i < profileFaces.size(); i++){
         profileFaces[i].x = frameGray.cols - profileFaces[i].x - profileFaces[i].width * 2/3;
         profileFaces[i].width *= SIDE_FACE_SCALE_RIGHT;
@@ -164,12 +303,36 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
     }
 #endif
 
+
+    // Eliminate "double" faces
+    vector<bool> overlapTable;
+
+    for (uint i = 0; i < faces.size(); i++) {
+        overlapTable.push_back(false);
+    }
+
+    for (uint i = 0; i < faces.size(); i++) {
+        for (uint j = i+1; j < faces.size(); j++) {
+            Rect intersectRect = faces[i] & faces[j];
+            Rect unionRect = faces[i] | faces[j];
+            double intersectPercent = (double)intersectRect.area() / (double)faces[i].area();
+            if (intersectPercent > OVERLAP_TOLERANCE){
+                overlapTable[j] = true;
+            }
+        }
+    }
+    for (uint i = 0; i < faces.size(); i++) {
+        if (overlapTable[i] == false) {
+            filteredFaces.push_back(faces[i]);
+        }
+    }
+
     toReturn->clear();
 
-    for(uint i = 0; i < faces.size(); ++i){
-        Rect face = faces[i];
+    for(uint i = 0; i < filteredFaces.size(); ++i){
+        Rect face = filteredFaces[i];
 
-        scale = (float)faces[i].height / (float)frame->rows;
+        scale = (float)face.height / (float)frame->rows;
 
         // Try to detect eyes
         Rect roi(face.x, face.y, face.width, face.height);
@@ -273,30 +436,29 @@ void Face::DetectFace(Mat *frame, QList<Face> *toReturn){
         if (countAngles > 0)
             finalAngle = angleSum / countAngles;
         #ifdef OUTPUT
-        imshow("Face", output);
+        // imshow("Face", output);
         #endif
 
-        toPush = Face(faces[i].x, faces[i].y, scale, finalAngle);
+        toPush = Face(face.x, face.y, scale, finalAngle);
         toReturn->push_back(toPush);
 
     }
 
-//    for(uint i = 0; i < faces20.size(); ++i){
+#ifdef TEMPLATE_MATCHING
+#ifdef GPU
+    if (filteredFaces.size() > 0) {
+        previousFaces.clear();
+        faceTemplates.clear();
 
-//        scale = (float)faces20[i].height / (float)frame->rows;
-//        toPush = Face(faces20[i].x, faces20[i].y, scale);
-//        toPush.rotation = 20;
-//        toReturn->push_back(toPush);
+        previousFaces.insert(previousFaces.end(), filteredFaces.begin(), filteredFaces.end());
 
-//    }
-
-//    for(uint i = 0; i < facesMin20.size(); ++i){
-
-//        scale = (float)facesMin20[i].height / (float)frame->rows;
-//        toPush = Face(facesMin20[i].x, facesMin20[i].y, scale);
-//        toPush.rotation = -20;
-//        toReturn->push_back(toPush);
-
-//    }
-
+        for (uint i = 0; i < previousFaces.size(); i++){
+            Rect faceRect = previousFaces[i];
+            cuda::GpuMat foundFace;
+            frameGpu(faceRect).copyTo(foundFace);
+            faceTemplates.push_back(foundFace);
+        }
+    }
+#endif
+#endif
 }
